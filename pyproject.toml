@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "rxprop"
+version = "0.1.0"
+description = "Super-simple reactive properties."
+readme = "README.md"
+requires-python = ">=3.12" # Development version
+dependencies = [ ]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
+authors = [
+   { name="Aaron Waters", email="aaron@aaronwaters.net" },
+]
+
+
+[project.urls]
+"Homepage" = "https://github.com/Digital-Aqua/rxprop"
+"Bug Tracker" = "https://github.com/Digital-Aqua/rxprop/issues"
+
+
+[project.optional-dependencies]
+test = [
+    # Development versions
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.26.0",
+    "pytest-timeout>=2.4.0",
+    "pyright>=1.1.400",
+    "ipykernel>=6.29.5",
+]
