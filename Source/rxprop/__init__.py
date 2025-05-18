@@ -3,14 +3,14 @@ Super-simple reactive properties.
 """
 __version__ = "0.1.0"
 
-from .rx_property import rx_property
-from .rx_value import rx_value
-from .rx_computed import rx_computed
+from .value_property import value
+from .computed_property import computed
+from .reactive_property import reactive_property
 from .watch import watch
 
 __all__ = [
-    "rx_property",
-    "rx_value",
-    "rx_computed",
+    "value",
+    "computed",
+    "reactive_property",
     "watch"
 ]

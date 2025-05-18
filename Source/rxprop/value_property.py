@@ -1,6 +1,7 @@
 from typing import Any, TypeVar
 from weakref import WeakKeyDictionary
-from .rx_property import ReactivePropertyMixin
+
+from .reactive_property import ReactivePropertyMixin
 from .typed_property import DefaultMixin, Getter, TypedProperty
 
 
@@ -27,7 +28,7 @@ class ValueStashMixin(TypedProperty[_TClass, _TValue]):
         self._values[instance] = value
 
 
-class ReactiveValue(
+class ValueProperty(
     ReactivePropertyMixin[_TClass, _TValue], # reactive logic
     ValueStashMixin[_TClass, _TValue],       # value storage logic
     DefaultMixin[_TClass, _TValue]           # fallback
@@ -45,9 +46,9 @@ class ReactiveValue(
             super()._set(instance, value) # triggers notifier
 
 
-def rx_value(fdefault: Getter[_TClass, _TValue]) -> ReactiveValue[_TClass, _TValue]:
+def value(fdefault: Getter[_TClass, _TValue]) -> ValueProperty[_TClass, _TValue]:
     """
     Decorator that creates a reactive property backed by a field.
     The decorated function is called (lazily) to generate the default value.
     """
-    return ReactiveValue(fdefault=fdefault, fref=fdefault)
+    return ValueProperty(fdefault=fdefault, fref=fdefault)

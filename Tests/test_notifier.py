@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock
-from rxprop.events import Notifier
+from rxprop.notifier import Notifier
 
 # Test Notifier Class
 

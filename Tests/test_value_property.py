@@ -4,7 +4,7 @@ from typing import Any
 
 # Assuming Source.Packages.rxprop.rx_value is accessible
 # Adjust the import path as necessary based on your project structure
-from rxprop.rx_value import ValueStashMixin
+from rxprop.value_property import ValueStashMixin
 from rxprop.typed_property import TypedProperty # For super()._get fallback testing
 
 # Dummy owner class for testing
@@ -135,11 +135,11 @@ class TestValueStashMixin:
 
         assert prop1._values is not prop2._values # type: ignore[protected-access] 
 
-# Test class for ReactiveValue
-from rxprop.rx_value import ReactiveValue
-from rxprop.rx_property import ReactivePropertyMixin # To mock super()._set
+# Test class for ValueProperty
+from rxprop.value_property import ValueProperty # Renamed class
+from rxprop.reactive_property import ReactivePropertyMixin # To mock super()._set
 
-class TestReactiveValue:
+class TestValueProperty: # Renamed test class
     def test_set_notification_behavior(self):
         class MyTestClass:
             pass
@@ -170,7 +170,7 @@ class TestReactiveValue:
             # It also inherits from DefaultMixin, ValueStashMixin, and ReactivePropertyMixin.
             def my_fdefault(inst: Any) -> str:
                 return "default"
-            prop = ReactiveValue[Any, Any](fdefault=my_fdefault)
+            prop = ValueProperty[Any, Any](fdefault=my_fdefault) # ReactiveValue is now ValueProperty
             
             instance = MyTestClass()
 

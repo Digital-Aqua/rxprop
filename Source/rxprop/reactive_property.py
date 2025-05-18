@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from typing import Any, AsyncIterator, Iterator
 from weakref import WeakKeyDictionary
 
-from .events import Notifier
+from .notifier import Notifier
 from .typed_property import (
     Getter, GetterMixin, SetterMixin, TypedProperty, TypeVar
 )
@@ -104,7 +104,7 @@ class ReactiveProperty(
     """
 
 
-def rx_property(
+def reactive_property(
     fget: Getter[_TClass, _TValue]
 ) -> ReactiveProperty[_TClass, _TValue]:
     """

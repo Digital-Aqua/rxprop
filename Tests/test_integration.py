@@ -2,7 +2,7 @@ import asyncio
 import pytest
 from typing import List
 
-from rxprop import rx_value, rx_property, rx_computed
+from rxprop import value, reactive_property, computed
 
 @pytest.mark.asyncio
 class TestIntegration:
@@ -16,11 +16,11 @@ class TestIntegration:
             def __init__(self):
                 self._multiplier = 2
 
-            @rx_value
+            @value
             def val_a(self) -> int:
                 return 10
 
-            @rx_property
+            @reactive_property
             def prop_b(self) -> int: # type: ignore
                 return self.val_a * self._multiplier
 
@@ -33,7 +33,7 @@ class TestIntegration:
                 else:
                     self.val_a = value // self._multiplier
 
-            @rx_computed
+            @computed
             def computed_c(self) -> int:
                 return self.val_a + self.prop_b
 

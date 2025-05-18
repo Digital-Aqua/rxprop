@@ -2,8 +2,8 @@ import asyncio
 from typing import Any, TypeVar
 from weakref import WeakKeyDictionary
 
-from .events import Notifier
-from .rx_property import listen_for_dependencies, ReactivePropertyMixin
+from .notifier import Notifier
+from .reactive_property import ReactivePropertyMixin, listen_for_dependencies
 from .typed_property import Getter
 
 
@@ -89,7 +89,7 @@ class ComputedProperty(
     """
 
 
-def rx_computed(
+def computed(
     fcompute: Getter[_TClass, _TValue]
 ) -> ComputedProperty[_TClass, _TValue]:
     """

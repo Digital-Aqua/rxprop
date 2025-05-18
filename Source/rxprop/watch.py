@@ -1,6 +1,6 @@
 from typing import Any, AsyncIterator, overload, TypeVar
 
-from .rx_property import ReactivePropertyMixin
+from .reactive_property import ReactivePropertyMixin
 
 
 _TClass = TypeVar("_TClass")
