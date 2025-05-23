@@ -30,6 +30,10 @@ authors = [
 ]
 
 
+[tool.setuptools]
+package-dir = {"" = "Source"}
+
+
 [project.urls]
 "Homepage" = "https://github.com/Digital-Aqua/rxprop"
 "Bug Tracker" = "https://github.com/Digital-Aqua/rxprop/issues"
@@ -44,3 +48,9 @@ test = [
     "pyright>=1.1.400",
     "ipykernel>=6.29.5",
 ]
+
+
+[tool.pytest.ini_options]
+pythonpath = ["Source"]
+timeout = 3
+testpaths = ["Tests/"]

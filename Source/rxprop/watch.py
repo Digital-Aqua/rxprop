@@ -65,3 +65,4 @@ def watch(
     if not isinstance(prop, ReactivePropertyMixin):
         raise ValueError(f"{property} is not a reactive property")
     return prop.watch_async(instance) # type: ignore
+

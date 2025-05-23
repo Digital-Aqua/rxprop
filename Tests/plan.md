@@ -1,220 +1,322 @@
-# Test Plan for `rxprop`
+# Test Plan for `rxprop` Package
 
-This plan outlines the tests for the `rxprop` package, which provides a reactive programming framework.
+This document outlines the test plan for the `rxprop` package, focusing on its core reactive programming functionalities.
 
-## 1. Core Property Functionality (`typed_property.py`)
+## 1. Key Behaviours
 
-Although `typed_property.py` is not directly exposed by `rxprop`, its components are fundamental.
+The `rxprop` package provides mechanisms for creating and managing reactive properties. Key behaviors include:
 
-### 1.1. `TypedProperty`
-- **`test_typed_property_get_set_delete_name.py`** (Consider renaming or splitting if tests become too large)
-    - Test basic instantiation (e.g., with and without `fref`).
-    - Test `__get__` descriptor behavior:
-        - Returns `self` when instance is `None`.
-        - Calls `_get` for an instance, which by default raises `AttributeError`.
-    - Test `__set__` descriptor behavior:
-        - Calls `_set`, which by default raises `AttributeError`.
-    - Test `__delete__` descriptor behavior:
-        - Calls `_delete`, which by default raises `AttributeError`.
-    - Test `__set_name__` correctly sets the `_name` attribute (e.g., from class assignment).
-    - Test `__doc__` is inherited from `fref.__doc__` if `fref` is provided.
-    - Test `_name` is initialized from `fref.__name__` if `fref` is provided.
+*   **Value Properties (`@rxprop.value`)**:
+    *   Storing and retrieving a value.
+    *   Lazy initialization of default values.
+    *   Notifying watchers when the value changes.
+*   **Computed Properties (`@rxprop.computed`)**:
+    *   Calculating a value based on a function.
+    *   Automatically tracking dependencies (other reactive properties).
+    *   Re-calculating and notifying watchers when dependencies change.
+    *   Caching computed values and only recomputing when dirty.
+*   **Reactive Properties (`@rxprop.reactive_property`)**:
+    *   General-purpose reactive properties with custom getters/setters.
+    *   Notifying watchers on change.
+*   **Watchers (`rxprop.watch`)**:
+    *   Asynchronously observing changes to reactive properties.
+    *   Receiving updated values when a watched property changes.
+*   **Notifier (`rxprop.notifier.Notifier`)**:
+    *   Core mechanism for signaling changes.
+    *   Adding and removing handlers.
+    *   Firing events to trigger handlers.
+    *   Providing an `asyncio.Event` context for asynchronous waiting.
+*   **Dependency Tracking (`listen_for_dependencies`)**:
+    *   Correctly identifying and registering properties accessed within a computation.
+*   **Typed Properties (`TypedProperty`, `GetterMixin`, `SetterMixin`, etc.)**:
+    *   Ensuring properties can be defined with type safety.
+    *   Correct functioning of `__get__`, `__set__`, `__delete__`, `__set_name__`.
+    *   Correct application of getter, setter, deleter, and default value factory mixins.
 
-### 1.2. Mixins
-- **`test_getter_mixin.py`**
-    - Test `GetterMixin` allows getting a value via a provided `fget` function.
-    - Test `getter` decorator method correctly sets/updates `fget`.
-    - Test `_get` falls back to `super()._get` if `fget` is `None`.
-- **`test_setter_mixin.py`**
-    - Test `SetterMixin` allows setting a value via a provided `fset` function.
-    - Test `setter` decorator method correctly sets/updates `fset`.
-    - Test `_set` falls back to `super()._set` if `fset` is `None`.
-- **`test_deleter_mixin.py`**
-    - Test `DeleterMixin` allows deleting a value via a provided `fdel` function.
-    - Test `deleter` decorator method correctly sets/updates `fdel`.
-    - Test `_delete` falls back to `super()._delete` if `fdel` is `None`.
-- **`test_default_mixin.py`**
-    - Test `DefaultMixin` uses the provided `fdefault` callable (passed in `__init__`) to produce a default value when its `_get` is called (e.g., through `super()._get` from a subclass like `ValueStashMixin` if a value isn't present).
-    - Test `default` decorator method works to set/change the `fdefault` callable.
-    - Test `fdefault` is called with the instance as an argument.
+---
 
-## 2. Notification System (`notifier.py`)
+## 2. Scenarios
 
-- **`test_notifier.py`** (or `test_events.py` - consider renaming to `test_notifier.py`)
-    - **`Notifier` Class**:
-        - Test `add_handler(handler)` correctly registers a handler.
-        - Test `add_handler` supports adding the same handler multiple times (reference counting).
-        - Test `fire()` calls all registered handlers.
-        - Test `remove_handler(handler)` correctly unregisters a handler.
-        - Test `remove_handler` respects reference counting (handler only fully removed when count is zero).
-        - Test `fire()` does not call removed handlers.
-        - Test `WeakKeyDictionary` behavior for `_handlers` (handlers are removed if the handler object is garbage collected - may be hard to test deterministically, but acknowledge its use).
-        - **`handler_context(handler)`**:
-            - Test handler is active (receives `fire()` calls) within the `with` block.
-            - Test handler is inactive (does not receive `fire()` calls) after the `with` block exits normally.
-            - Test handler is inactive after the `with` block exits due to an exception.
-        - **`event_context()`**:
-            - Test it yields an `asyncio.Event`.
-            - Test the yielded event is set when the notifier's `fire()` method is called while the context is active.
-            - Test the event is not set by `fire()` calls made after the context has exited.
-            - Test multiple `event_context` instances on the same notifier.
+### 2.1 `rxprop.value`
 
-## 3. Reactive Value (`value_property.py`)
+#### 2.1.1 Basic Value Storage and Retrieval
+*   **Given** a class with an `rxprop.value` property
+    *   **When** an instance of the class is created
+    *   **Then** the property can be accessed and returns its default value (if defined via decorated function).
+*   **Given** an `rxprop.value` property on an instance
+    *   **When** a new value is assigned to the property
+    *   **Then** the property stores the new value.
+*   **Given** an `rxprop.value` property on an instance
+    *   **When** the property is accessed multiple times without change
+    *   **Then** it consistently returns the same stored value.
 
-- **`test_value_property.py`** (was `test_rx_value.py`)
-    - **`ValueStashMixin`**:
-        - Test `_get` retrieves a value from `_values` if the instance is a key.
-        - Test `_get` calls `super()._get` if the instance is not in `_values` (e.g., to trigger default value generation from `DefaultMixin`).
-        - Test `_set` stores the value in the `_values` `WeakKeyDictionary` for the instance.
-        - Test `WeakKeyDictionary` behavior for `_values` (entry cleared when instance is GC'd - hard to test deterministically).
-    - **`ValueProperty` Class & `value_property` Decorator** (was `ReactiveValue` & `rx_value`):
-        - Test instantiation with `value_property(fdefault_func)`:
-            - `ValueProperty` is created with `fdefault=fdefault_func` and `fref=fdefault_func`.
-        - Test default value generation:
-            - When a `ValueProperty` is first accessed on an instance, `fdefault_func` (from `DefaultMixin`) is called via `ValueStashMixin`'s fallback `_get`.
-            - The result of `fdefault_func` is returned and should ideally be stashed by `ValueStashMixin` if it were to implement caching on default value resolution (or ensure `ValueProperty._get` handles this through its inheritance).
-        - Test getting the value (exercises `ValueStashMixin._get`, `DefaultMixin` if not set).
-        - Test setting the value (`ValueProperty._set` behavior):
-            - It retrieves the current value using `self._get(instance)`.
-            - If the new value is different from this current value:
-                - It calls `super()._set(instance, value)` (which could be `ReactivePropertyMixin._set` or a base property set).
-                - This `super()._set` call is then responsible for actually updating the stored value (e.g., via `ValueStashMixin._set` further down the MRO) and for triggering notifications if applicable.
-            - If the new value is the same as the current value (obtained via `self._get`), `super()._set` is *not* called, thus skipping the underlying storage update and the notification.
-        - Test `default()` method (from `DefaultMixin`) allows changing the `fdefault` factory, and this new factory is used for subsequent default value generations.
-        - Test change notification via `watch_async` (if inherited, e.g. from `ReactivePropertyMixin`) when the value is set to a new, different value.
-        - Test that different instances of a class using `value_property` have independent values and default value computations.
+#### 2.1.2 Default Value Initialization
+*   **Given** an `rxprop.value` property with a default value factory function
+    *   **When** the property is first accessed
+    *   **Then** the default value factory function is called exactly once.
+*   **Given** an `rxprop.value` property with a default value factory function
+    *   **When** the property is set before its first access
+    *   **Then** the default value factory function is NOT called.
 
-## 4. Reactive Property System (`reactive_property.py`)
+#### 2.1.3 Notification on Change
+*   **Given** an `rxprop.value` property and an active watcher on it
+    *   **When** the property's value is set to a new, different value
+    *   **Then** the watcher is notified with the new value.
+*   **Given** an `rxprop.value` property and an active watcher on it
+    *   **When** the property's value is set to the same value it currently holds
+    *   **Then** the watcher is NOT notified (implementation detail to confirm, but typical reactive behavior).
 
-- **`test_reactive_property.py`** (was `test_rx_property.py`)
-    - **`listen_for_dependencies` Context Manager**:
-        - Test that notifiers of properties accessed (via their `_get` method which calls `ReactivePropertyMixin._get`) within its scope are added to the provided `buffer` set.
-        - Test `_dep_ctx_stack` is correctly managed (pushed on enter, popped on exit, even with exceptions).
-        - Test behavior with nested `listen_for_dependencies` contexts (dependencies go to the innermost active context's buffer).
-    - **`ReactivePropertyMixin`**:
-        - Test `_get_notifier(instance)`:
-            - Creates a new `Notifier` for an instance if one doesn't exist in `_notifiers`.
-            - Returns the cached `Notifier` on subsequent calls for the same instance.
-            - Uses `WeakKeyDictionary` for `_notifiers`.
-        - Test `_get(instance, owner)`:
-            - If `_dep_ctx_stack` is active, adds the instance's notifier (from `_get_notifier`) to the current dependency context buffer (`_dep_ctx_stack[-1]`).
-            - Calls `super()._get(instance, owner)` to retrieve the actual value.
-        - Test `_set(instance, value)`:
-            - Calls `super()._set(instance, value)` to store the actual value.
-            - Fires the instance's notifier via `_get_notifier(instance).fire()`.
-        - **`watch_async(instance)` Method**:
-            - Test it yields the current value of the property immediately upon first `await anext()`.
-            - Test it yields new values when the property's notifier is fired (e.g., after `_set`).
-            - Test it correctly uses `notifier.event_context()` from `Notifier` (i.e., awaits the event, then fetches new value).
-            - Test `event.clear()` is called in the loop.
-            - Test `asyncio.sleep(0)` is present.
-            - Test multiple concurrent `watch_async` iterators on the same property instance receive updates.
-    - **`ReactiveProperty` Class & `reactive_property` Decorator** (was `rx_property`):
-        - Test instantiation with `reactive_property(fget_func)` decorator:
-            - `ReactiveProperty` is created with `fget=fget_func` and `fref=fget_func`.
-        - Test it correctly inherits from `GetterMixin`, `SetterMixin`, and `ReactivePropertyMixin`.
-        - Test basic get functionality:
-            - Delegates to `fget_func` (via `GetterMixin`).
-            - Triggers dependency registration via `ReactivePropertyMixin._get`.
-        - Test basic set functionality (after decorating setter with `@name.setter`):
-            - Delegates to the `fset_func` (via `SetterMixin`).
-            - Triggers notification via `ReactivePropertyMixin._set`.
-        - Test change notification through `watch_async` when the property is set.
+---
 
-## 5. Computed Property (`computed_property.py`)
+### 2.2 `rxprop.computed`
 
-- **`test_computed_property.py`** (was `test_rx_computed.py`)
-    - **`ComputedPropertyMixin` Functionality**:
-        - Test `_get` calls the `_fcompute(instance)` function.
-        - **Dependency Tracking within `_get`**:
-            - Test `listen_for_dependencies` is used, and the `new_deps` set is populated with notifiers of reactive properties accessed during `_fcompute`.
-            - Test identification of `added_deps = new_deps - old_deps` and `removed_deps = old_deps - new_deps`.
-            - Test `self._get_notifier(instance).fire` is added as a handler to notifiers in `added_deps`.
-            - Test `self._get_notifier(instance).fire` is removed as a handler from notifiers in `removed_deps`.
-            - Test `self._deps` (`WeakKeyDictionary`) is updated to store `new_deps` for the instance.
-            - Test lifecycle: no deps -> some deps -> different deps -> no deps.
-            - Test `WeakKeyDictionary` behavior for `_deps`.
-    - **`CachedPropertyMixin` Functionality**:
-        - Test `_is_dirty(instance)`:
-            - Returns `True` for a new instance or if `instance not in self._values`.
-            - Lazily creates an `asyncio.Event` in `_dirty` (initially set) if not present for an instance.
-            - On first call for an instance (or if event not yet linked), registers `_dirty[instance].set` as a handler to `self._get_notifier(instance)`.
-            - Returns `self._dirty[instance].is_set()` status (or `True` if value not cached).
-        - Test `_get(instance, owner)` behavior:
-            - If `_is_dirty(instance)` is `False`, returns the cached value from `_values` without calling `super()._get` (no recomputation).
-            - If `_is_dirty(instance)` is `True`, calls `value = super()._get(instance, owner)` to trigger recomputation (e.g., via `ComputedPropertyMixin._get`).
-            - After recomputation (if dirty), the new value is stored in `_values[instance]`.
-            - After recomputation (if dirty), `_dirty[instance].clear()` is called.
-        - Test `WeakKeyDictionary` behavior for `_dirty` and `_values`.
-    - **`ComputedProperty` Class & `computed_property` Decorator (Integration of Mixins)** (was `rx_computed`):
-        - Test instantiation with `computed_property(fcompute_func)` decorator:
-            - `ComputedProperty` is created with `fcompute=fcompute_func` and `fref=fcompute_func`.
-        - Test initial `_get`: computes value (via `ComputedPropertyMixin`), caches it (via `CachedPropertyMixin`), and clears dirty flag.
-        - Test subsequent `_get` when no dependencies have changed: returns cached value without recomputation.
-        - **Re-computation Triggering and Value Propagation**:
-            - Scenario: Dependency A's value changes.
-                1. Dependency A's notifier fires.
-                2. This calls the `ComputedProperty`'s notifier's `fire` method (handler added by `ComputedPropertyMixin`).
-                3. The `ComputedProperty`'s notifier firing calls `_dirty[instance].set` (handler added by `CachedPropertyMixin`).
-                4. A subsequent `_get` on `ComputedProperty` finds it dirty, recomputes (via `ComputedPropertyMixin`), updates `_values`, and clears `_dirty` flag.
-        - **`watch_async(instance)` (inherited from `ReactivePropertyMixin` via `CachedPropertyMixin`)**:
-            - Test it yields the initial computed value.
-            - Test it yields new values when the computed value effectively changes. This means:
-                - A dependency changes.
-                - The computed property becomes dirty.
-                - It is recomputed (e.g., on next `_get` or if `watch_async` itself triggers a `_get`).
-                - The `ComputedProperty`'s own notifier is fired (due to the chain: dep change -> computed's handler -> computed's notifier fires -> `CachedPropertyMixin`'s handler sets dirty event. The actual `fire()` that `watch_async` listens to is the computed's own notifier, which should be fired by `ComputedPropertyMixin`'s `_get` *after* a successful re-evaluation if the value changed, or if its `_set` is ever directly called, though it's not designed for direct setting).
-                *Clarification needed on when exactly the computed property's main notifier fires to update `watch_async`.* (The `ComputedPropertyMixin._get` itself doesn't fire its own notifier. `ReactivePropertyMixin._set` does. This implies `watch_async` on a plain computed might only update if its *dependencies* fire and it recomputes on the next `__get__` call *within* `watch_async`'s loop. This needs careful testing based on `ReactivePropertyMixin`'s `watch_async` implementation details.)
+#### 2.2.1 Basic Computation
+*   **Given** a class with an `rxprop.computed` property that depends on one or more `rxprop.value` properties
+    *   **When** an instance is created
+    *   **Then** the computed property returns the correctly calculated value based on the initial values of its dependencies.
 
-        - Test with no dependencies (value computed once, cached, never recomputed unless manually dirtied if possible).
-        - Test with multiple dependencies.
-        - Test with nested computed properties (e.g., `computed_A` depends on `computed_B` which depends on `value_C`).
-        - Test behavior when `_fcompute` raises an exception:
-            - Exception should propagate out of `_get`.
-            - Cache (`_values`) should not be updated with a new value.
-            - Dirty state (`_dirty` event) should ideally remain set or reflect the failed computation.
+#### 2.2.2 Dependency Tracking and Re-computation
+*   **Given** a `rxprop.computed` property and its `rxprop.value` dependency
+    *   **When** the dependency's value changes
+    *   **Then** the computed property's value is re-calculated and updated.
+*   **Given** a `rxprop.computed` property with multiple `rxprop.value` dependencies
+    *   **When** any of its dependencies change
+    *   **Then** the computed property is re-calculated.
+*   **Given** a `rxprop.computed` property
+    *   **When** a non-dependency reactive property changes
+    *   **Then** the computed property is NOT re-calculated.
 
-## 6. Watch Utilities (`watch.py`)
+#### 2.2.3 Caching
+*   **Given** a `rxprop.computed` property
+    *   **When** the property is accessed multiple times without any change in its dependencies
+    *   **Then** the computation function is called only once (value is cached).
+*   **Given** a `rxprop.computed` property whose dependencies have changed
+    *   **When** the property is accessed
+    *   **Then** the computation function is called again.
 
-- **`test_watch.py`**
-    - Test core functionality of utilities provided in `watch.py`.
-    - **`watch` Function (if applicable)**:
-        - Test watching a `value_property`:
-            - Callback is called with initial value (if designed to do so).
-            - Callback is called with new value upon change.
-            - Test providing specific `instance` to watch.
-        - Test watching a `reactive_property`:
-            - Callback is called with initial value.
-            - Callback is called with new value upon change.
-        - Test watching a `computed_property`:
-            - Callback is called with initial computed value.
-            - Callback is called when the computed value changes due to dependency updates.
-        - Test unwatching/stopping the watch.
-        - Test behavior with multiple watchers on the same property.
-        - Test behavior with watchers on multiple different properties.
-        - Test interaction with `asyncio` event loop if it's an async watch.
-    - **Context Managers for Watching (if applicable)**:
-        - Test any context managers that simplify setting up and tearing down watchers.
-    - **Batching/Debouncing/Throttling (if applicable)**:
-        - If `watch.py` includes features for batching updates, debouncing, or throttling, test these mechanisms thoroughly.
-    - Test edge cases:
-        - Watching non-reactive attributes (should it error out or do nothing?).
-        - Property raising an exception during get.
-        - Lifetime management: ensure watchers are cleaned up if the watched object or watcher itself is garbage collected.
+#### 2.2.4 Notification on Change
+*   **Given** a `rxprop.computed` property and an active watcher on it
+    *   **When** a dependency changes, causing the computed property's value to change
+    *   **Then** the watcher is notified with the new computed value.
+*   **Given** a `rxprop.computed` property and an active watcher on it
+    *   **When** a dependency changes, but the computed property's value remains the same (e.g., `computed = dep1 > 0 or dep2 > 0`)
+    *   **Then** the watcher is NOT notified (to be confirmed, ideal behavior).
 
-## 7. Integration and Edge Cases
+#### 2.2.5 Nested Computed Properties
+*   **Given** `computed1` depends on `value1`, and `computed2` depends on `computed1`
+    *   **When** `value1` changes
+    *   **Then** `computed1` re-evaluates.
+    *   **And Then** `computed2` re-evaluates.
+    *   **And Then** watchers on `computed2` are notified of its new value.
 
-- **`test_integration.py`**
-    - Test interactions between `value_property`, `reactive_property` (with custom getter/setter), and `computed_property`.
-        - e.g., `computed_property` depending on a `value_property` and a `reactive_property`.
-        - e.g., an `reactive_property` whose getter/setter interact with other reactive components.
-    - Test scenarios with multiple class instances, ensuring no interference between instance data (values, dependencies, notifiers).
-    - Test behavior during garbage collection of instances holding reactive properties (verify `WeakKeyDictionary` dependent cleanup, though direct assertion is hard. Focus on ensuring no strong references prevent GC where not intended).
-    - Test asynchronous scenarios:
-        - Multiple updates to a property in quick succession before a `watch_async` consumer (or `watch.py` utility) processes them.
-        - Multiple `watch_async` (or `watch.py` utility) observers on the same property and on different properties.
-        - `computed_property` re-computation triggered by rapid changes in dependencies.
-    - Test properties on classes with `__slots__` (if `WeakKeyDictionary` or other mechanisms rely on `__weakref__` which might be affected by `__slots__`).
-    - Further explore the interaction of `watch_async` (and `watch.py` utilities) on a `computed_property`. When exactly does its notifier fire to update watchers? Is it after re-computation if the value changed, or only if explicitly fired? (This relates to the clarification point in section 5).
+#### 2.2.6 Attempting to Set a Computed Property
+*   **Given** a `rxprop.computed` property (without an explicit setter)
+    *   **When** an attempt is made to set its value
+    *   **Then** an appropriate error (e.g., `AttributeError` or specific property error indicating it's read-only) is raised.
 
-This plan should provide good coverage for the `rxprop` package. Test scripts should be created in the `Tests/rxprop/` directory, corresponding to the sections and files outlined above.
+---
+
+### 2.3 `rxprop.reactive_property`
+
+#### 2.3.1 Custom Getter and Setter
+*   **Given** a class with an `rxprop.reactive_property` using a custom getter
+    *   **When** the property is accessed
+    *   **Then** the custom getter is called and its return value is provided.
+*   **Given** a class with an `rxprop.reactive_property` using a custom setter
+    *   **When** a value is assigned to the property
+    *   **Then** the custom setter is called with the instance and the assigned value.
+
+#### 2.3.2 Notification
+*   **Given** an `rxprop.reactive_property` (implicitly, its setter should trigger notification) and an active watcher
+    *   **When** the property is set (and its underlying value changes, triggering notification from the setter logic)
+    *   **Then** the watcher is notified.
+
+---
+
+### 2.4 `rxprop.watch`
+
+#### 2.4.1 Watching `rxprop.value`
+*   **Given** an `rxprop.value` property on an instance
+    *   **When** `rxprop.watch` is called on the instance and property
+    *   **Then** an async iterator is returned.
+*   **Given** an `rxprop.value` property on an instance with an initial value
+    *   **When** `rxprop.watch` is called and iteration begins on the returned async iterator
+    *   **Then** the async iterator immediately yields the current (initial) value of the property.
+*   **Given** an async iterator from `rxprop.watch` on a `value` property
+    *   **When** the `value` property is set to a new value
+    *   **Then** the async iterator yields the new value.
+*   **Given** an async iterator from `rxprop.watch`
+    *   **When** the property is set multiple times in quick succession
+    *   **Then** the async iterator yields the latest value (or all intermediate if guaranteed, check docs/implementation - stub says "NOT guaranteed to yield intermediate values").
+
+#### 2.4.2 Watching `rxprop.computed`
+*   **Given** an `rxprop.computed` property on an instance
+    *   **When** `rxprop.watch` is called on the instance and property
+    *   **Then** an async iterator is returned.
+*   **Given** an `rxprop.computed` property on an instance
+    *   **When** `rxprop.watch` is called and iteration begins on the returned async iterator
+    *   **Then** the async iterator immediately yields the current computed value of the property.
+*   **Given** an async iterator from `rxprop.watch` on a `computed` property
+    *   **When** a dependency of the `computed` property changes, causing the computed value to change
+    *   **Then** the async iterator yields the new computed value.
+
+#### 2.4.3 Watching by Property Name (String)
+*   **Given** an instance with a reactive property named "my_prop"
+    *   **When** `rxprop.watch(instance, "my_prop")` is called
+    *   **Then** it behaves the same as watching the property object directly.
+*   **Given** an instance and a non-existent property name
+    *   **When** `rxprop.watch(instance, "non_existent_prop")` is called
+    *   **Then** it raises an appropriate error (e.g., `AttributeError`).
+
+#### 2.4.4 Watcher Lifecycle
+*   **Given** an async iterator from `rxprop.watch`
+    *   **When** the iterator is exhausted or closed (e.g., `async for` loop finishes or `break`)
+    *   **Then** the underlying watcher/handler is removed and no longer receives notifications.
+
+---
+
+### 2.5 `rxprop.notifier.Notifier`
+
+#### 2.5.1 Handler Management
+*   **Given** a `Notifier` instance
+    *   **When** `add_handler` is called with a callable
+    *   **Then** the handler is registered.
+*   **Given** a `Notifier` instance with a registered handler
+    *   **When** `remove_handler` is called with that same handler
+    *   **Then** the handler is deregistered.
+*   **Given** a `Notifier` instance
+    *   **When** `remove_handler` is called with a handler that was not added
+    *   **Then** it does not raise an error (graceful failure).
+
+#### 2.5.2 Event Firing
+*   **Given** a `Notifier` instance with one or more registered handlers
+    *   **When** `fire()` is called
+    *   **Then** all registered handlers are executed.
+*   **Given** a `Notifier` instance with no registered handlers
+    *   **When** `fire()` is called
+    *   **Then** no error occurs.
+
+#### 2.5.3 `handler_context`
+*   **Given** a `Notifier` and a handler function
+    *   **When** `handler_context` is used with the handler
+    *   **Then** the handler is active within the context and removed upon exiting.
+    *   **And When** `fire()` is called within the context
+    *   **Then** the handler is called.
+    *   **And When** `fire()` is called after exiting the context
+    *   **Then** the handler is NOT called.
+
+#### 2.5.4 `event_context`
+*   **Given** a `Notifier`
+    *   **When** `event_context` is used
+    *   **Then** it provides an `asyncio.Event`.
+*   **Given** an `asyncio.Event` from `event_context`
+    *   **When** the `Notifier`'s `fire()` method is called
+    *   **Then** the `asyncio.Event` is set.
+*   **Given** an `asyncio.Event` from `event_context` that has been set
+    *   **When** it's awaited
+    *   **Then** the await completes.
+    *   **And Then** the event should be clear for the next fire (confirm behavior).
+
+---
+
+### 2.6 Dependency Tracking (`listen_for_dependencies`)
+
+*   **Given** a set for storing notifiers and a reactive property
+    *   **When** the property is accessed within a `listen_for_dependencies` context manager using that set
+    *   **Then** the property's notifier is added to the set.
+*   **Given** a set for storing notifiers and multiple reactive properties
+    *   **When** these properties are accessed within a `listen_for_dependencies` context
+    *   **Then** all their notifiers are added to the set.
+*   **Given** a `listen_for_dependencies` context
+    *   **When** a non-reactive attribute is accessed within the context
+    *   **Then** no error occurs and nothing is added to the dependency set for that access.
+*   **Given** existing listeners on a property
+    *   **When** `listen_for_dependencies` context is active for that property
+    *   **Then** existing listeners are temporarily suppressed.
+    *   **And When** the context exits
+    *   **Then** existing listeners are restored.
+
+---
+
+### 2.7 `TypedProperty` and Mixins
+
+#### 2.7.1 Basic `TypedProperty` Descriptors
+*   **Given** a class with a `TypedProperty` attribute
+    *   **When** the attribute is accessed on an instance
+    *   **Then** `TypedProperty.__get__` is called, and it should handle its internal logic (likely returning the stored value or calling a getter).
+*   **Given** a class with a `TypedProperty` attribute
+    *   **When** a value is assigned to the attribute on an instance
+    *   **Then** `TypedProperty.__set__` is called.
+*   **Given** a class with a `TypedProperty` attribute
+    *   **When** `del` is used on the attribute on an instance
+    *   **Then** `TypedProperty.__delete__` is called.
+*   **Given** a class definition with a `TypedProperty`
+    *   **When** the class is being defined
+    *   **Then** `TypedProperty.__set_name__` is called with the owner class and property name.
+
+#### 2.7.2 `GetterMixin`
+*   **Given** a `TypedProperty` subclassed from/mixed with `GetterMixin` and a custom getter function provided via `fget` or `.getter()`
+    *   **When** the property is accessed
+    *   **Then** the custom getter function is executed.
+
+#### 2.7.3 `SetterMixin`
+*   **Given** a `TypedProperty` subclassed from/mixed with `SetterMixin` and a custom setter function provided via `fset` or `.setter()`
+    *   **When** a value is assigned to the property
+    *   **Then** the custom setter function is executed.
+
+#### 2.7.4 `DeleterMixin`
+*   **Given** a `TypedProperty` subclassed from/mixed with `DeleterMixin` and a custom deleter function provided via `fdel` or `.deleter()`
+    *   **When** `del` is used on the property
+    *   **Then** the custom deleter function is executed.
+
+#### 2.7.5 `DefaultMixin`
+*   **Given** a `TypedProperty` subclassed from/mixed with `DefaultMixin` and a default factory provided
+    *   **When** the property is accessed for the first time and no value has been set
+    *   **Then** the default factory is called to provide the value.
+    *   **And When** the property is accessed again without being set
+    *   **Then** the default factory is NOT called again (value is stored).
+
+---
+
+## 3. Prioritization (High-Level)
+
+1.  **P0: Core Functionality**
+    *   `rxprop.value`: Basic storage, default value, notification.
+    *   `rxprop.computed`: Basic computation, dependency tracking, re-computation, caching, notification.
+    *   `rxprop.watch`: Watching `value` and `computed` properties.
+    *   `Notifier`: Basic `add_handler`, `remove_handler`, `fire`.
+2.  **P1: Advanced/Mixin Functionality**
+    *   `rxprop.reactive_property`: Custom getters/setters.
+    *   `listen_for_dependencies`: Correct context management.
+    *   `Notifier`: `handler_context`, `event_context`.
+    *   `TypedProperty` and its mixins: Ensuring descriptor protocol and mixin behaviors are correct.
+    *   Edge cases for all P0 items (e.g., setting to same value, multiple quick updates for watchers).
+3.  **P2: Less Critical/Error Handling**
+    *   Watching non-existent properties by name.
+    *   Interactions between deeply nested computed properties.
+
+## 4. Test Structure
+
+*   Tests will be located in `Tests/rxprop/`.
+*   File naming: `test_<feature>_<behaviour>.py` (e.g., `test_value_property_basics.py`, `test_computed_property_dependencies.py`).
+*   Test function naming: `test_<action>_when_<condition>_then_<expected>()`.
+*   A `test_typing.py` will be created to ensure static type checking passes with `pyright`.
+
+## 5. Out of Scope for Initial Plan (Potentially Future)
+
+*   Performance testing under high load / many properties / frequent updates.
+*   Complex interactions with external async libraries beyond basic `asyncio.Event`.
+*   Thread safety (assuming primarily single-threaded async usage, but to be confirmed if multi-threading is a target).
+
+## 6. Status Key
+
+*   `⚪️ Not Started`
+*   `🟡 In Progress`
+*   `✅ Done`
+*   `⚠️ Needs Discussion`
+*   `🚧 Blocked`
+
+(Each scenario will be updated with a status marker as development progresses)
+
+---
+**Initial Status for all scenarios: `⚪️ Not Started`** 
