@@ -1,25 +1,71 @@
 from typing import Any, AsyncIterator, overload, TypeVar
 
+from .reactive import watchf
 from .reactive_property import ReactivePropertyMixin
 
 
 _TClass = TypeVar("_TClass")
 _TValue = TypeVar("_TValue")
 
-
 @overload
-def watch(
+def watchp(
     instance: _TClass,
     property: ReactivePropertyMixin[_TClass, _TValue]
-) -> AsyncIterator[_TValue]: ...
+) -> AsyncIterator[_TValue]:
+    """
+    Asynchronously watches a specific reactive property on an instance for
+    changes.
+
+    Args:
+        instance: The object instance on which the property resides.
+        property: The reactive property itself (a `ReactivePropertyMixin`
+                  instance).
+
+    Returns:
+        An asynchronous iterator (`AsyncIterator`) that yields the property's
+        current value and subsequent new values upon change.
+
+    Example:
+        >>> class MyClass:
+        ...     @rx.value
+        ...     def my_value(self) -> int:
+        ...         return 1
+        ...
+        >>> obj = MyClass()
+        >>> async for value in watch(obj, MyClass.my_value):
+        ...     print(f"Value changed to: {value}")
+    """
+    ...
 
 @overload
-def watch(
+def watchp(
     instance: object,
     property: str
-) -> AsyncIterator[Any]: ...
+) -> AsyncIterator[Any]:
+    """
+    Asynchronously watches a reactive property on an instance by its name.
 
-def watch(
+    Args:
+        instance: The object instance on which the property resides.
+        property: The name of the reactive property (a string).
+
+    Returns:
+        An asynchronous iterator (`AsyncIterator[Any]`) that yields the
+        property's current value and subsequent new values upon change.
+
+    Example:
+        >>> class MyClass:
+        ...     @rx.value
+        ...     def my_value(self) -> int:
+        ...         return 1
+        ...
+        >>> obj = MyClass()
+        >>> async for value in watch(obj, 'my_value'):
+        ...     print(f"Value changed to: {value}")
+    """
+    ...
+
+def watchp(
     instance: _TClass,
     property: ReactivePropertyMixin[_TClass, _TValue] | str
 ) -> AsyncIterator[_TValue | Any]:
@@ -57,7 +103,7 @@ def watch(
     """
     # Type-strong path
     if not isinstance(property, str):
-        return property.watch_async(instance)
+        return watchf(lambda: property.get(instance))
     
     # Type-weak path
     cls: type = type(instance)

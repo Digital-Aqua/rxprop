@@ -14,4 +14,4 @@ def test_pyright_type_check():
     
     # Assert that pyright ran successfully (return code 0)
     assert result.returncode == 0, \
-        f"Pyright found type errors in {source_dir}." 
+        f"Pyright found type errors in {source_dir}."

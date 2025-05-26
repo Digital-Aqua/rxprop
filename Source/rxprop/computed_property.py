@@ -1,11 +1,12 @@
 from typing import Any, TypeVar
 from weakref import WeakKeyDictionary
 
-from .notifier import Notifier
-from .reactive_property import ReactivePropertyMixin, listen_for_dependencies
+from .reactive_property import ReactivePropertyMixin
 from .typed_property import Getter, GetterMixin
 
-_SimpleNotifier = Notifier[None]
+from .reactive import announce_dependency, DependencyCollection
+
+
 _TClass = TypeVar("_TClass")
 _TValue = TypeVar("_TValue")
 
@@ -32,7 +33,8 @@ class CachedPropertyMixin(ReactivePropertyMixin[_TClass, _TValue]):
         # Prefer cache; but announce dependency manually,
         # since we're bypassing ReactivePropertyMixin._get(...)
         if instance in self._cache_values:
-            self._announce_dependency(instance)
+            notifier = self._get_notifier(instance)
+            announce_dependency(notifier)
             return self._cache_values[instance]
         # Recompute, cache, return.
         value = super()._get(instance)
@@ -61,21 +63,24 @@ class ComputedValueMixin(
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self._computed_dependencies = \
-            WeakKeyDictionary[_TClass, set[_SimpleNotifier]]()
+            WeakKeyDictionary[_TClass, DependencyCollection]()
 
     def _get_computed_dependencies(self,
         instance: _TClass
-    ) -> set[_SimpleNotifier]:
+    ) -> DependencyCollection:
         if instance not in self._computed_dependencies:
-            self._computed_dependencies[instance] = set[_SimpleNotifier]()
+            # Have the dependency collection fire our change notifier
+            trigger = self._get_notifier_trigger(instance)
+            self._computed_dependencies[instance] = \
+                DependencyCollection(trigger)
+            # ALSO have the dependency collection clear our cache
         return self._computed_dependencies[instance]
 
     def _get(self,
         instance: _TClass
     ) -> _TValue:
-        trigger = self._get_notifier_trigger(instance)
         deps = self._get_computed_dependencies(instance)
-        with listen_for_dependencies(deps, trigger):
+        with deps.listen_for_dependencies():
             # Call the getter more directly, so we don't just get our ourself
             # as a dependency.
             value = GetterMixin[_TClass, _TValue]._get(self, instance)
@@ -86,6 +91,7 @@ class ComputedProperty(
     # Ultimately just a cache backed by a getter.
     # The cache invalidates reactively; the getter provides the computation.
     CachedPropertyMixin[_TClass, _TValue],
+    ComputedValueMixin[_TClass, _TValue],
     GetterMixin[_TClass, _TValue]
 ):
     """

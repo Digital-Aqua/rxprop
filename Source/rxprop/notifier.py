@@ -1,7 +1,8 @@
-import asyncio
-from contextlib import contextmanager
-from typing import Callable, Generic, Iterator, TypeVar
-# from weakref import WeakKeyDictionary # No longer used
+from typing import Callable, Generic, TypeVar
+from weakref import WeakSet
+from weakref import ref as weak_ref
+
+from .lifetime import Lifetime
 
 
 _TArgs = TypeVar('_TArgs')
@@ -13,37 +14,54 @@ class Notifier(Generic[_TArgs]):
     A source of notification events.
     """
     def __init__(self):
-        # self._handlers = WeakKeyDictionary[Action, int]()
-        self._handlers: dict[_THandler[_TArgs], int] = dict()
+        self._bindings = WeakSet['Notifier[_TArgs]._BindingLifetime']()
 
-    @contextmanager
-    def handler_context(self, handler: _THandler[_TArgs]) -> Iterator[None]:
-        self.add_handler(handler)
-        try:
-            yield
-        finally:
-            self.remove_handler(handler)
-
-    @contextmanager
-    def event_context(self) -> Iterator[asyncio.Event]:
+    class _BindingLifetime(Lifetime):
         """
-        Provides an `asyncio.Event` that is set when this notifier is fired.
+        A container for a binding between a notifier and a handler.
+        Keeps the handler alive; does not keep the notifier alive.
         """
-        event = asyncio.Event()
-        with self.handler_context(lambda _: event.set()):
-            yield event
+        def __init__(self,
+            notifier: 'Notifier[_TArgs]',
+            handler: _THandler[_TArgs]
+        ):
+            self._notifier = weak_ref(notifier)
+            self.handler = handler
+            notifier._bindings.add(self)
 
-    def add_handler(self, handler: _THandler[_TArgs]) -> None:
-        self._handlers.setdefault(handler, 0)
-        self._handlers[handler] += 1
+        def unbind(self):
+            """
+            Unbinds this binding from its notifier.
+            This is called automatically when the lifetime object is disposed.
+            Robust to multiple calls.
+            """
+            if self._notifier and (notifier := self._notifier()):
+                notifier._bindings.remove(self)
+            self._notifier = None
+            self.handler = None
 
-    def remove_handler(self, handler: _THandler[_TArgs]) -> None:
-        self._handlers[handler] -= 1
-        if self._handlers[handler] == 0:
-            del self._handlers[handler]
+        def _dispose(self):
+            self.unbind()
+            super()._dispose()
+
+    def bind(self, handler: _THandler[_TArgs]) -> 'Lifetime':
+        """
+        Binds a handler to this notifier.
+        Returns a lifetime object that keeps the binding alive.
+        Release the lifetime object to unbind the handler;
+        either explicitly via a `with` block,
+        or just by letting the lifetime go out of scope.
+        This notifier will NOT keep the binding alive;
+        but the lifetime object WILL keep the handler alive.
+        """
+        return self._BindingLifetime(self, handler)
 
     def fire(self, args: _TArgs) -> None:
-        # Fire handlers carefully, in case one of them messes with this list
-        for handler in list(self._handlers.keys()):
-            if handler in self._handlers:
-                handler(args)
+        """
+        Fires all handlers bound to this notifier.
+        """
+        # Fire handlers carefully,
+        # in case one of them messes with self._bindings
+        for binding in list(self._bindings):
+            if binding in self._bindings and binding.handler:
+                binding.handler(args)
