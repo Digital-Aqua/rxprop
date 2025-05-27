@@ -3,7 +3,8 @@ Super-simple reactive properties.
 
 
 ## Features
-- Minimal API: 
+- Minimal API: just `@value`, `@computed`, `watchf`, and `watchp`
+- Designed for `asyncio`
 - Developed for Python 3.12+
 - No dependencies
 
@@ -11,7 +12,7 @@ Super-simple reactive properties.
 ## Installation
 
 ```bash
-pip install rxprop # NOT YET!!
+pip install rxprop # NOT PUBLISHED YET!!
 ```
 
 
@@ -19,7 +20,7 @@ pip install rxprop # NOT YET!!
 
 See the [User Guide notebook](Samples/UserGuide.ipynb) for more details.
 
-Declaring reactive properties:
+Declare reactive properties with `@value` and `@computed`:
 
 ```python
 import rxprop as rx
@@ -37,13 +38,13 @@ class MyClass:
 obj = MyClass()
 ```
 
-Using reactive properties:
+Subscribe to reactive properties with `watchp` and `watchf`, using an async iterator pattern:
 
 ```python
 import asyncio
 
 async def consumer():
-    async for i in rx.watch(obj, MyClass.my_value):
+    async for i in rx.watchp(obj, MyClass.my_value):
         print(i)
 
 task = asyncio.create_task(consumer())
@@ -58,3 +59,23 @@ task.cancel()
 # | 2
 # | 4
 ```
+
+
+## Testing
+
+Set up a conda environment:
+
+```bash
+conda create --prefix .conda --yes
+conda env update --prefix .conda --file environment.yaml
+```
+
+Run the tests:
+
+```bash
+pytest .
+```
+
+## Roadmap
+
+- Robust error handling
