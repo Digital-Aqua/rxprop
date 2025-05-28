@@ -1,6 +1,5 @@
 from typing import Callable, Generic, TypeVar
-from weakref import WeakSet
-from weakref import ref as weak_ref
+from weakref import WeakSet, ref as weak_ref
 
 from .lifetime import Lifetime
 
