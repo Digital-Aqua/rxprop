@@ -18,9 +18,10 @@ def test_notify():
         notifier.fire(1)
         notifier.fire(2)
         notifier.fire(3)
+        notifier.fire(3)
     notifier.fire(4)
 
-    assert received_values == [1, 2, 3]
+    assert received_values == [1, 2, 3, 3]
 
 
 def test_handler_keepalive():

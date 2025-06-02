@@ -7,10 +7,12 @@ import rxprop as rx
 from utils import flush_event_loop
 
 
+
 class ValueExample:
     @rx.value
     def my_value(self) -> int:
         return 1
+
 
 
 async def _test_value(
@@ -55,20 +57,17 @@ async def _test_value(
 @pytest.mark.asyncio
 async def test_value_watchf():
     await _test_value(
-        lambda x:
-            rx.watchf(lambda: x.my_value)
+        lambda x: rx.watchf(lambda: x.my_value)
     )
 
 @pytest.mark.asyncio
 async def test_value_watchp_property():
     await _test_value(
-        lambda x:
-            rx.watchp(x, ValueExample.my_value)
+        lambda x: rx.watchp(x, ValueExample.my_value)
     )
 
 @pytest.mark.asyncio
 async def test_value_watchp_string():
     await _test_value(
-        lambda x:
-            rx.watchp(x, 'my_value')
+        lambda x: rx.watchp(x, 'my_value')
     )

@@ -3,16 +3,18 @@ Super-simple reactive properties.
 """
 __version__ = "0.1.0"
 
-from .value_property import value
 from .computed_property import computed
+from .notifier import ChangeNotifierBase, Notifier, PChangeNotifier
 from .reactive import watchf
+from .reactive_list import ReactiveList
+from .value_property import value
 from .watch_property import watchp
-from .notifier import Notifier
 
 __all__ = [
-    "value",
     "computed",
+    "ChangeNotifierBase", "Notifier", "PChangeNotifier",
     "watchf",
+    "ReactiveList",
+    "value",
     "watchp",
-    "Notifier",
 ]

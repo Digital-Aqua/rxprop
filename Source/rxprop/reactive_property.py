@@ -2,7 +2,7 @@ from typing import Any, Callable
 from weakref import WeakKeyDictionary
 
 from .reactive import announce_dependency
-from .notifier import Notifier
+from .notifier import Notifier, PChangeNotifier
 from .typed_property import TypedProperty, TypeVar
 
 
@@ -50,7 +50,10 @@ class ReactivePropertyMixin(TypedProperty[_TClass, _TValue]):
 
     def _get(self, instance: _TClass) -> _TValue:
         announce_dependency(self._get_notifier(instance))
-        return super()._get(instance)
+        value = super()._get(instance)
+        if isinstance(value, PChangeNotifier):
+            announce_dependency(value.on_change)
+        return value
 
     def _set(self, instance: _TClass, value: _TValue) -> None:
         super()._set(instance, value)

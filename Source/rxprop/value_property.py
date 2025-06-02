@@ -4,7 +4,6 @@ from weakref import WeakKeyDictionary
 from .reactive_property import ReactivePropertyMixin
 from .typed_property import DefaultMixin, Getter, TypedProperty
 
-
 _TClass = TypeVar("_TClass")
 _TValue = TypeVar("_TValue")
 
@@ -52,3 +51,4 @@ def value(fdefault: Getter[_TClass, _TValue]) -> ValueProperty[_TClass, _TValue]
     The decorated function is called (lazily) to generate the default value.
     """
     return ValueProperty(fdefault=fdefault, fref=fdefault)
+

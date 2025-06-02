@@ -19,7 +19,7 @@ class ComputedExample:
         return self.my_value * 10
 
 
-async def _test_value(
+async def _test_computed(
     watch_factory: tuple[
         Callable[[ComputedExample], AsyncIterator[int]],
         Callable[[ComputedExample], AsyncIterator[int]]
@@ -81,7 +81,7 @@ async def _test_value(
 
 @pytest.mark.asyncio
 async def test_computed_watchf():
-    await _test_value((
+    await _test_computed((
         lambda x:
             rx.watchf(lambda: x.my_value),
         lambda x:
@@ -90,7 +90,7 @@ async def test_computed_watchf():
 
 @pytest.mark.asyncio
 async def test_computed_watchp_property():
-    await _test_value((
+    await _test_computed((
         lambda x:
             rx.watchp(x, ComputedExample.my_value),
         lambda x:
@@ -99,7 +99,7 @@ async def test_computed_watchp_property():
 
 @pytest.mark.asyncio
 async def test_computed_watchp_string():
-    await _test_value(
+    await _test_computed(
         (
             lambda x:
                 rx.watchp(x, 'my_value'),

@@ -1,4 +1,4 @@
-from typing import Callable, Generic, TypeVar
+from typing import Callable, Generic, Protocol, TypeVar, runtime_checkable
 from weakref import WeakSet, ref as weak_ref
 
 from .lifetime import Lifetime
@@ -64,3 +64,26 @@ class Notifier(Generic[_TArgs]):
         for binding in list(self._bindings):
             if binding in self._bindings and binding.handler:
                 binding.handler(args)
+
+
+@runtime_checkable
+class PChangeNotifier(Protocol):
+    """
+    Protocol for manual change notification.
+    """
+    @property
+    def on_change(self) -> Notifier[None]:
+        ...
+
+
+class ChangeNotifierBase(PChangeNotifier):
+    """
+    Base implementation of manual change notification via an
+    `on_change: Notifier[None]` property.
+    """
+    def __init__(self):
+        self._on_change = Notifier[None]()
+
+    @property
+    def on_change(self) -> Notifier[None]:
+        return self._on_change
