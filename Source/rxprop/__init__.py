@@ -9,8 +9,10 @@ from .notifier import ChangeNotifierBase, Notifier, PChangeNotifier
 from .reactive import watchf
 from .reactive_list import ReactiveList
 from .typed_property import TypedProperty
+from .reactive_property import reactive
 from .value_property import value
 from .watch_property import watchp
+
 
 __all__ = [
     "computed",
@@ -19,6 +21,7 @@ __all__ = [
     "watchf",
     "ReactiveList",
     "TypedProperty",
+    "reactive",
     "value",
     "watchp",
 ]

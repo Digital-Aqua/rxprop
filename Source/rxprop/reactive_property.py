@@ -1,9 +1,9 @@
-from typing import Any, Callable
+from typing import Any, Callable, overload
 from weakref import WeakKeyDictionary
 
 from .reactive import announce_dependency
 from .notifier import Notifier, PChangeNotifier
-from .typed_property import TypedProperty, TypeVar
+from .typed_property import Getter, TypedProperty, TypeVar
 
 
 _SimpleNotifier = Notifier[None]
@@ -58,3 +58,16 @@ class ReactivePropertyMixin(TypedProperty[_TClass, _TValue]):
     def _set(self, instance: _TClass, value: _TValue) -> None:
         super()._set(instance, value)
         self._fire_notifier(instance)
+
+
+def reactive(
+    f: Getter[_TClass, _TValue]
+) -> ReactivePropertyMixin[_TClass, _TValue]:
+    """
+    Decorator that indicates a reactive property.
+
+    Provides no functionality.
+    Typically used for type hinting, where an abstract property may be
+    implemented as either `value` or `computed`.
+    """
+    return ReactivePropertyMixin(fref=f)
