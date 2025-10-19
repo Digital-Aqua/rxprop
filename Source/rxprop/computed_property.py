@@ -1,26 +1,23 @@
 from typing import Any, TypeVar
 from weakref import WeakKeyDictionary
 
-from .reactive_property import ReactivePropertyMixin
-from .typed_property import Getter, GetterMixin
-
 from .reactive import announce_dependency, DependencyCollection
+from .reactive_property import ReactivePropertyMixin
+from .typed_property import Getter, GetterMixin, TClass, TValue
 
 
-_TClass = TypeVar("_TClass")
-_TValue = TypeVar("_TValue")
 
 
-class CachedPropertyMixin(ReactivePropertyMixin[_TClass, _TValue]):
+class CachedPropertyMixin(ReactivePropertyMixin[TClass, TValue]):
     """
     A reactive property with a cache and a dirty indicator.
     Prevents re-computation if the property is not dirty (very important!)
     """
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        self._cache_values = WeakKeyDictionary[_TClass, _TValue]()
+        self._cache_values = WeakKeyDictionary[TClass, TValue]()
 
-    def _fire_notifier(self, instance: _TClass) -> None:
+    def _fire_notifier(self, instance: Any) -> None:
         # Hooks into the change notification pipeline,
         # clearing the cache first, before firing the notifier.
         if instance in self._cache_values:
@@ -28,8 +25,8 @@ class CachedPropertyMixin(ReactivePropertyMixin[_TClass, _TValue]):
         super()._fire_notifier(instance)
 
     def _get(self,
-        instance: _TClass
-    ) -> _TValue:
+        instance: Any
+    ) -> TValue:
         # Prefer cache; but announce dependency manually,
         # since we're bypassing ReactivePropertyMixin._get(...)
         if instance in self._cache_values:
@@ -42,8 +39,8 @@ class CachedPropertyMixin(ReactivePropertyMixin[_TClass, _TValue]):
         return value
 
     def _set(self,
-        instance: _TClass,
-        value: _TValue
+        instance: Any,
+        value: TValue
     ) -> None:
         # Bypass quickly if possible.
         if instance in self._cache_values:
@@ -57,16 +54,16 @@ class CachedPropertyMixin(ReactivePropertyMixin[_TClass, _TValue]):
 
 
 class ComputedValueMixin(
-    ReactivePropertyMixin[_TClass, _TValue],
-    GetterMixin[_TClass, _TValue]
+    ReactivePropertyMixin[TClass, TValue],
+    GetterMixin[TClass, TValue]
 ):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self._computed_dependencies = \
-            WeakKeyDictionary[_TClass, DependencyCollection]()
+            WeakKeyDictionary[TClass, DependencyCollection]()
 
     def _get_computed_dependencies(self,
-        instance: _TClass
+        instance: Any
     ) -> DependencyCollection:
         if instance not in self._computed_dependencies:
             # Have the dependency collection fire our change notifier
@@ -77,31 +74,31 @@ class ComputedValueMixin(
         return self._computed_dependencies[instance]
 
     def _get(self,
-        instance: _TClass
-    ) -> _TValue:
+        instance: Any
+    ) -> TValue:
         deps = self._get_computed_dependencies(instance)
         with deps.listen_for_dependencies():
             # Call the getter more directly, so we don't just get our ourself
             # as a dependency.
-            value = GetterMixin[_TClass, _TValue]._get(self, instance)
+            value = GetterMixin[TClass, TValue]._get(self, instance)
         return value
 
 
 class ComputedProperty(
     # Ultimately just a cache backed by a getter.
     # The cache invalidates reactively; the getter provides the computation.
-    CachedPropertyMixin[_TClass, _TValue],
-    ComputedValueMixin[_TClass, _TValue],
-    GetterMixin[_TClass, _TValue]
+    CachedPropertyMixin[TClass, TValue],
+    ComputedValueMixin[TClass, TValue],
+    GetterMixin[TClass, TValue]
 ):
     """
     A reactive property backed by a compute function.
     """
 
 
-def computed(
-    fcompute: Getter[_TClass, _TValue]
-) -> ComputedProperty[_TClass, _TValue]:
+def rxcomputed(
+    fcompute: Getter[TClass, TValue]
+) -> ComputedProperty[TClass, TValue]:
     """
     Decorator that creates a reactive property backed by a compute function.
 

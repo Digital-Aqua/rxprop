@@ -1,40 +1,15 @@
-from typing import Any, AsyncIterator, overload, TypeVar
+from typing import Any, AsyncIterator, overload
 
 from .reactive import watchf
 from .reactive_property import ReactivePropertyMixin
+from .typed_property import TClass, TValue
 
-
-_TClass = TypeVar("_TClass")
-_TValue = TypeVar("_TValue")
 
 @overload
 def watchp(
-    instance: _TClass,
-    property: ReactivePropertyMixin[_TClass, _TValue]
-) -> AsyncIterator[_TValue]:
-    """
-    Asynchronously watches a specific reactive property on an instance for
-    changes.
-
-    Args:
-        instance: The object instance on which the property resides.
-        property: The reactive property itself (a `ReactivePropertyMixin`
-                  instance).
-
-    Returns:
-        An asynchronous iterator (`AsyncIterator`) that yields the property's
-        current value and subsequent new values upon change.
-
-    Example:
-        >>> class MyClass:
-        ...     @rx.value
-        ...     def my_value(self) -> int:
-        ...         return 1
-        ...
-        >>> obj = MyClass()
-        >>> async for value in watch(obj, MyClass.my_value):
-        ...     print(f"Value changed to: {value}")
-    """
+    instance: TClass,
+    property: ReactivePropertyMixin[TClass, TValue]
+) -> AsyncIterator[TValue]:
     ...
 
 @overload
@@ -42,12 +17,30 @@ def watchp(
     instance: object,
     property: str
 ) -> AsyncIterator[Any]:
+    ...
+
+def watchp(
+    instance: TClass,
+    property: ReactivePropertyMixin[TClass, TValue] | str
+) -> AsyncIterator[TValue | Any]:
     """
-    Asynchronously watches a reactive property on an instance by its name.
+    Asynchronously watches a reactive property on an instance.
+
+    This function works by tracking which reactive properties are accessed
+    during the execution of the property's getter. When any of these
+    dependencies change, the property is re-evaluated, and the new result
+    is yielded.
+
+    Note:
+        This function is NOT guaranteed to yield intermediate values if the
+        dependencies change multiple times in quick succession before the
+        async event loop processes the changes. It prioritizes yielding the
+        latest consistent state.
 
     Args:
         instance: The object instance on which the property resides.
-        property: The name of the reactive property (a string).
+        property: The property itself (usually on the class,
+        e.g. `MyClass.my_value`) or its name (a string).
 
     Returns:
         An asynchronous iterator (`AsyncIterator[Any]`) that yields the
@@ -60,47 +53,10 @@ def watchp(
         ...         return 1
         ...
         >>> obj = MyClass()
-        >>> async for value in watch(obj, 'my_value'):
+        >>> async for value in watchp(obj, 'my_value'):
         ...     print(f"Value changed to: {value}")
     """
-    ...
 
-def watchp(
-    instance: _TClass,
-    property: ReactivePropertyMixin[_TClass, _TValue] | str
-) -> AsyncIterator[_TValue | Any]:
-    """
-    Asynchronously watches a reactive property for changes and yields new values.
-
-    This function supports two modes of operation based on the `property` argument:
-    1.  Direct Property Reference:
-        If `property` is an instance of `ReactivePropertyMixin`, the watch
-        is set up directly. The async iterator will yield values of the
-        specific type `_TValue` associated with the property.
-        Example: `async for val in watch(obj, MyClass.some_property): ...`
-
-    2.  Property Name (String):
-        If `property` is a string, it's treated as the name of the reactive
-        property to be looked up on the `instance`'s class. The async
-        iterator will yield values of type `Any`.
-        Example: `async for val in watch(obj, "some_property_name"): ...`
-
-    The iterator will first yield the current value of the property upon iteration,
-    and subsequently yield new values as the property changes.
-
-    Args:
-        instance: The object instance on which the property resides.
-        property: The reactive property itself (a `ReactivePropertyMixin`
-                  instance) or its name (a string).
-
-    Returns:
-        An asynchronous iterator (`AsyncIterator`) that yields the property's
-        current value and subsequent new values upon change.
-
-    Raises:
-        ValueError: If `property` is a string but does not correspond to a
-                    `ReactivePropertyMixin` on the instance's class.
-    """
     # Type-strong path
     if not isinstance(property, str):
         return watchf(lambda: property.get(instance))
@@ -110,5 +66,5 @@ def watchp(
     prop = getattr(cls, property)
     if not isinstance(prop, ReactivePropertyMixin):
         raise ValueError(f"{property} is not a reactive property")
-    return prop.watch_async(instance) # type: ignore
+    return watchf(lambda: prop.get(instance)) # type: ignore
 
