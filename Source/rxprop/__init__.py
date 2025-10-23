@@ -11,7 +11,7 @@ from .reactive_list import ReactiveList
 from .typed_property import StrongProperty, TypedProperty, prop
 from .reactive_property import reactive
 from .value_property import value, rxvalue
-from .watch_property import watchp
+from .watch import watchp
 
 
 __all__ = [
